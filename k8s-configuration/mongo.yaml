@@ -1,0 +1,59 @@
+#deployemnt config
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongodb-deployment
+  #labels are used to refernce/identify the deployment you are refering to in all other config files
+  labels:
+    app: mongodb
+spec:
+  #number of duplicates of the pod/container? that should be made for backup
+  replicas: 1 
+  selector:
+    matchLabels:
+      app: mongodb
+    #pod that contains the containers
+  template:
+    metadata:
+      labels:
+        app: mongodb
+    spec:
+      containers: 
+      #name to be assigned to the image
+      #image in the container. You can check out how to use the container (eg ports, etc) from docker hub
+      - name: mongodb
+        image: mongo 
+        ports:
+        #as seen in docker hub
+        - containerPort: 27017
+        #environmental variables the values are left blank cos they will be passes at run time( and we don't want to expose it in git), but the variables are created here
+        env: 
+        #we will create a secret in kubernestis (where it is safe and encrpted without user access) from where we will pass in the values of the passwor and usename
+        - name: MONGO_INITDB_ROOT_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-secret
+              key: mongo-root-username
+        - name: MONGO_INITDB_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-secret
+              key: mongo-root-password
+--- 
+#service config         
+apiVersion: v1
+#since this is a service config
+kind: Service
+#the name you want to give the service
+metadata:
+  name: mongodb-service
+spec:
+  selector:
+    # The pod you want to connect to. Connect to the pod through the label  
+    app: mongodb
+  ports:
+    - protocol: TCP
+      #The service port you want
+      port: 27017
+      #That is the port you want to connect to #Which is the container port at deployement congif file. 
+      targetPort: 27017

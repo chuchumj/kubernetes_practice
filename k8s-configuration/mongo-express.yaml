@@ -1,0 +1,68 @@
+#deployemnt config
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongo-express
+  labels:
+    app: mongo-express
+spec:
+  #number of duplicates of the pod/container? that should be made for backup
+  replicas: 1 
+  selector:
+    matchLabels:
+      app: mongo-express
+    #pod that contains the containers
+  template:
+    metadata:
+      labels:
+        app: mongo-express
+    spec:
+      containers: 
+      #name to be assigned to the image
+      #image in the container that we will pull. You can check out how to use the container (eg ports, etc) from docker hub
+      - name: mongo-express
+        image: mongo-express 
+        #This application will have to connect to the mongodb and the server, that is why we have both in our env variable
+        ports:
+        #as seen in docker hub
+        - containerPort: 8081
+        #environmental variables the values are left blank cos they will be passes at run time( and we don't want to expose it in git), but the variables are created here
+        env: 
+        #we will create a secret in kubernestis (where it is safe and encrpted without user access) from where we will pass in the values of the passwor and usename
+        - name: ME_CONFIG_MONGODB_ADMINUSERNAME
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-secret
+              key: mongo-root-username
+        - name: ME_CONFIG_MONGODB_ADMINPASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-secret
+              key: mongo-root-password
+        - name: ME_CONFIG_MONGODB_SERVER
+          valueFrom:
+            configMapKeyRef:
+              name: mongodb-configmap
+              key: database_url
+---
+apiVersion: v1
+#since this is a service config
+kind: Service
+#the name you want to give the service
+metadata:
+  name: mongo-express-service
+spec:
+  selector:
+    # The pod you want to connect to. Connect to the pod through the label  
+    app: mongo-express
+  #to make this an external service. It Accepts the expternal request by assigning the service an external ip address. 
+  type: LoadBalancer
+  ports:
+    - protocol: TCP
+      #The service port you want.
+      #These two ports will be created one for internal, the other for external id address for comunication
+      port: 8081
+      #That is the port you want to connect to #Which is the container port at deployement congif file. 
+      targetPort: 8081
+      #The port the extrernal id address will be open
+      nodePort: 30000
